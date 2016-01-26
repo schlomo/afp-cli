@@ -1,11 +1,13 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division
 
 import requests
 import json
 from requests.auth import HTTPBasicAuth
+
+
+class APICallError(Exception):
+    pass
 
 
 class AWSFederationClientCmd(object):
@@ -19,16 +21,20 @@ class AWSFederationClientCmd(object):
 
     def call_api(self, url_suffix):
         """Send a request to the aws federation proxy"""
+        # TODO: Automatic versioning instead of the static below
+        headers = {'User-Agent': 'afp-cli/1.0.6'}
         api_result = requests.get('{0}{1}'.format(self.api_url, url_suffix),
+                                  headers=headers,
                                   verify=self.ssl_verify,
                                   auth=HTTPBasicAuth(self.username,
                                                      self._password))
         if api_result.status_code != 200:
             if api_result.status_code == 401:
-                raise Exception("API call to AWS (%s/%s) failed: %s %s" % (
+                # Need to treat 401 specially since it is directly send from webserver and body has different format.
+                raise APICallError("API call to AWS (%s/%s) failed: %s %s" % (
                     self.api_url, url_suffix, api_result.status_code, api_result.reason))
             else:
-                raise Exception("API call to AWS (%s/%s) failed: %s" % (
+                raise APICallError("API call to AWS (%s/%s) failed: %s" % (
                     self.api_url, url_suffix, api_result.json()['message']))
         return api_result.text
 
@@ -47,13 +53,3 @@ class AWSFederationClientCmd(object):
                 'AWS_SESSION_TOKEN': aws_credentials['Token'],
                 'AWS_SECURITY_TOKEN': aws_credentials['Token'],
                 'AWS_EXPIRATION_DATE': aws_credentials['Expiration']}
-
-    def print_account_and_role_list(self):
-        """Print account and role list to stdout"""
-        for key, values in self.get_account_and_role_list().iteritems():
-            print("{0:<20} {1}".format(key, ",".join(values)))
-
-    def print_aws_credentials_with_export_style(self, account, role):
-        """Print aws credentials for account and role as bash export command"""
-        for key, value in self.get_aws_credentials(account, role).iteritems():
-            print("export {0}={1}".format(key, value))

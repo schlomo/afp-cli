@@ -3,7 +3,7 @@
 
 import sys
 
-from afp_cli.cli import main
+from afp_cli.cliv2 import main
 
 if __name__ == '__main__':
     try:
